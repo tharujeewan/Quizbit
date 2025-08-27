@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "296783775724",
+    "project_id": "quizbit-a11f7",
+    "storage_bucket": "quizbit-a11f7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:296783775724:android:ba49caf802b01ccaca22c9",
+        "android_client_info": {
+          "package_name": "com.example.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnK3vs5IBCf-z-bz_sqoTnjZMd346bu5k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
