@@ -28,7 +28,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   late final Stream<List<_UserStat>> _topUsersStream;
   QuizCategory _selectedCategory = QuizCategory.general;
   QuizDifficulty _selectedDifficulty = QuizDifficulty.easy;
-  QuizType _selectedQuizType = QuizType.category; // Add this line
+  QuizType _selectedQuizType = QuizType.category;
 
   @override
   void dispose() {
@@ -70,15 +70,24 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     setState(() => _isSaving = true);
     try {
       final quizDoc = <String, dynamic>{
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
-        'category': _selectedCategory.name,
-        'difficulty': _selectedDifficulty.name,
         'createdBy': context.read<AuthState>().userName ?? 'Unknown',
         'createdByEmail': context.read<AuthState>().userEmail ?? '',
-        'quizType': _selectedQuizType.name, // <-- Save quiz type
+        'quizType': _selectedQuizType.name,
       };
+
+      // Conditionally add fields based on quiz type
+      if (_selectedQuizType == QuizType.category) {
+        quizDoc['title'] = _titleController.text.trim();
+        quizDoc['description'] = _descriptionController.text.trim();
+        quizDoc['category'] = _selectedCategory.name;
+        quizDoc['difficulty'] = _selectedDifficulty.name;
+      } else if (_selectedQuizType == QuizType.timed) {
+        quizDoc['title'] = _titleController.text.trim();
+        quizDoc['description'] = _descriptionController.text.trim();
+      }
+      // For Quick 10, no title, description, category, or difficulty is needed.
+
       final questions = _questions
           .where((q) => q.isValid())
           .map((q) => q.toMap())
@@ -170,36 +179,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               const SizedBox(height: 16),
               _TopUsersCard(stream: _topUsersStream),
               const SizedBox(height: 24),
-              DropdownButtonFormField<QuizCategory>(
-                value: _selectedCategory,
-                items: QuizCategory.values
-                    .map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(_categoryLabel(c)),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => _selectedCategory = value);
-                },
-                decoration: const InputDecoration(labelText: 'Category'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<QuizDifficulty>(
-                value: _selectedDifficulty,
-                items: QuizDifficulty.values
-                    .map((d) => DropdownMenuItem(
-                          value: d,
-                          child: Text(
-                              d.name[0].toUpperCase() + d.name.substring(1)),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null)
-                    setState(() => _selectedDifficulty = value);
-                },
-                decoration: const InputDecoration(labelText: 'Difficulty'),
-              ),
-              const SizedBox(height: 12),
+
+              // 1. Select Quiz Type First
               DropdownButtonFormField<QuizType>(
                 value: _selectedQuizType,
                 items: QuizType.values
@@ -215,8 +196,44 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Only show title/description if not Quick 10
-              if (_selectedQuizType != QuizType.quick10) ...[
+              // 2. Conditionally show fields for 'Category' type
+              if (_selectedQuizType == QuizType.category) ...[
+                DropdownButtonFormField<QuizCategory>(
+                  value: _selectedCategory,
+                  items: QuizCategory.values
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(_categoryLabel(c)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null)
+                      setState(() => _selectedCategory = value);
+                  },
+                  decoration: const InputDecoration(labelText: 'Category'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<QuizDifficulty>(
+                  value: _selectedDifficulty,
+                  items: QuizDifficulty.values
+                      .map((d) => DropdownMenuItem(
+                            value: d,
+                            child: Text(
+                                d.name[0].toUpperCase() + d.name.substring(1)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null)
+                      setState(() => _selectedDifficulty = value);
+                  },
+                  decoration: const InputDecoration(labelText: 'Difficulty'),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // 3. Conditionally show Title and Description
+              if (_selectedQuizType == QuizType.category ||
+                  _selectedQuizType == QuizType.timed) ...[
                 TextFormField(
                   controller: _titleController,
                   decoration: const InputDecoration(labelText: 'Quiz title'),

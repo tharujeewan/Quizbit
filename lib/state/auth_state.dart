@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthState extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   String? _userName;
   String? _lastErrorMessage;
@@ -106,7 +108,47 @@ class AuthState extends ChangeNotifier {
     }
   }
 
+  Future<bool> signInWithGoogle() async {
+    try {
+      _lastErrorMessage = null;
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // The user canceled the sign-in
+        _lastErrorMessage = 'Google Sign-In was cancelled.';
+        notifyListeners();
+        return false;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _auth.signInWithCredential(credential);
+      _userName = _deriveUserName(_auth.currentUser);
+
+      await _ensureFirestoreUserDoc();
+
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _lastErrorMessage = _mapAuthErrorToMessage(e);
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _lastErrorMessage = 'An error occurred with Google Sign-In.';
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
+    await _googleSignIn.signOut();
     await _auth.signOut();
     _userName = null;
     notifyListeners();

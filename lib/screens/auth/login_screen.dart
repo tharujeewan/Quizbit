@@ -80,6 +80,33 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _googleSignIn() async {
+    setState(() => _isLoading = true);
+    final ok = await context.read<AuthState>().signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (ok) {
+      final isAdmin = context.read<AuthState>().isAdmin;
+      if (isAdmin) {
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil(AdminPanelScreen.route, (route) => false);
+      } else {
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil(HomeShell.route, (route) => false);
+      }
+    } else {
+      final errorMessage =
+          context.read<AuthState>().lastErrorMessage ?? 'Google Sign-In failed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,14 +197,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Google sign up not implemented')),
-                  );
-                },
+                onPressed: _isLoading ? null : _googleSignIn,
                 icon: const Icon(Icons.g_mobiledata, color: Colors.red),
-                label: const Text('Sign up with Google'),
+                label: const Text('Continue with Google'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),

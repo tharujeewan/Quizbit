@@ -14,6 +14,45 @@ class QuizzesListScreen extends StatelessWidget {
     final selectedDifficulty = quizState.selectedDifficulty;
     final selectedQuizType = quizState.selectedQuizType;
 
+    // For Quick 10, directly fetch and show questions
+    if (selectedQuizType == 'quick10') {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Quick 10')),
+        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('quizzes')
+              .where('quizType', isEqualTo: 'quick10')
+              .limit(1) // Get one random quiz
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return const Center(child: Text('No Quick 10 quizzes available'));
+            }
+
+            // Navigate directly to quiz play
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.of(context).pushReplacementNamed(
+                '/quiz_play',
+                arguments: {'quizId': docs.first.id},
+              );
+            });
+
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+      );
+    }
+
+    // Existing code for other quiz types
     Query<Map<String, dynamic>> query =
         FirebaseFirestore.instance.collection('quizzes');
     String titleText;

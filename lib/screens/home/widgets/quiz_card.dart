@@ -19,7 +19,7 @@ class QuizCard extends StatelessWidget {
     return Card(
       elevation: 0,
       child: InkWell(
-        onTap: () {},
+        onTap: onStart,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -42,8 +42,9 @@ class QuizCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontSize: 18, // Reduced font size
                           ),
                     ),
                   ),
@@ -52,45 +53,30 @@ class QuizCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 subtitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: Colors.white70),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white70,
+                      fontSize: 14, // Reduced subtitle font size
+                    ),
               ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.icon(
-                  onPressed: () async {
-                    // Record a new attempt document and increment user's counter.
-                    try {
-                      final user = FirebaseAuth.instance.currentUser;
-                      final now = FieldValue.serverTimestamp();
-                      await FirebaseFirestore.instance
-                          .collection('quizAttempts')
-                          .add({
-                        'title': title,
-                        'subtitle': subtitle,
-                        'category': category,
-                        'userId': user?.uid,
-                        'createdAt': now,
-                      });
-                      if (user != null) {
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(user.uid)
-                            .set({
-                          'quizzesPlayedCount': FieldValue.increment(1),
-                          'lastPlayedAt': now,
-                        }, SetOptions(merge: true));
-                      }
-                    } catch (_) {}
-                    if (onStart != null) onStart!();
-                  },
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Start'),
-                ),
-              )
+              const SizedBox(height: 12), // Add spacing before button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end, // Align to right
+                children: [
+                  FilledButton.icon(
+                    onPressed: onStart,
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: const Text('Start'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF00C2FF),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

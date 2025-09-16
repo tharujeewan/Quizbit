@@ -12,7 +12,7 @@ class ExplorePage extends StatelessWidget {
     return GridView.count(
       padding: const EdgeInsets.all(16),
       crossAxisCount: 2,
-      childAspectRatio: 1.1,
+      childAspectRatio: 1, // Decreased from 1.3 to make cards taller
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       children: [
@@ -27,7 +27,7 @@ class ExplorePage extends StatelessWidget {
         ),
         QuizCard(
           title: 'Science',
-          subtitle: 'Biology, Physics, Chemistry',
+          subtitle: 'Physics Biology & Chemistry', // Shortened subtitle
           category: QuizCategory.science.name,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.science);
@@ -36,7 +36,7 @@ class ExplorePage extends StatelessWidget {
         ),
         QuizCard(
           title: 'Technology',
-          subtitle: 'Computers & Gadgets',
+          subtitle: 'Tech & Gadgets', // Shortened subtitle
           category: QuizCategory.technology.name,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.technology);
