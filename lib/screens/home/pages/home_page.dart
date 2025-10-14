@@ -17,6 +17,9 @@ class HomePage extends StatelessWidget {
           QuizCard(
             title: 'Quick 10',
             subtitle: '10 random questions',
+            icon: Icons.flash_on, // <-- Add this
+            isUnlocked: true,
+            isCompleted: false,
             onStart: () {
               context.read<QuizState>().setQuizType('quick10');
               Navigator.of(context).pushNamed(QuizzesListScreen.route);
@@ -26,6 +29,9 @@ class HomePage extends StatelessWidget {
           QuizCard(
             title: 'Timed Challenge',
             subtitle: 'Beat the clock',
+            icon: Icons.timer, // <-- Add this
+            isUnlocked: true,
+            isCompleted: false,
             onStart: () {
               context.read<QuizState>().setQuizType('timed');
               Navigator.of(context).pushNamed(QuizzesListScreen.route);

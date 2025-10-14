@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../state/quiz_state.dart';
+import 'package:hive/hive.dart';
+import '../../models/quiz.dart';
 
 class QuizzesListScreen extends StatelessWidget {
   static const String route = '/quizzes';
@@ -82,29 +84,66 @@ class QuizzesListScreen extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Failed to load quizzes: ${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
+          if (snapshot.hasError || (snapshot.data?.docs.isEmpty ?? true)) {
+            // Try to load offline quizzes from Hive
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: _loadOfflineQuizList(),
+              builder: (context, offlineSnapshot) {
+                if (offlineSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final offlineQuizzes = offlineSnapshot.data ?? [];
+                if (offlineQuizzes.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'No quizzes available offline.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: offlineQuizzes.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final quiz = offlineQuizzes[index];
+                    final quizId = quiz['id'] ?? '';
+                    final title = (quiz['title'] ?? '') as String;
+                    final description = (quiz['description'] ?? '') as String;
+                    final createdBy = (quiz['createdBy'] ?? '') as String;
+
+                    return Card(
+                      child: ListTile(
+                        title: Text(title),
+                        subtitle: Text(description.isEmpty
+                            ? 'by ${createdBy.isEmpty ? 'Unknown' : createdBy}'
+                            : description),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).pushNamed(
+                            '/quiz_play',
+                            arguments: {'quizId': quizId},
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
             );
           }
 
           final docs = snapshot.data?.docs ??
               const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-          // Sort client-side to avoid requiring a composite index
+          // Sort client-side by 'level' field instead of 'createdAt'
           final sortedDocs = [...docs]..sort((a, b) {
-              final aTs = a.data()['createdAt'];
-              final bTs = b.data()['createdAt'];
-              final aMillis =
-                  (aTs is Timestamp) ? aTs.millisecondsSinceEpoch : 0;
-              final bMillis =
-                  (bTs is Timestamp) ? bTs.millisecondsSinceEpoch : 0;
-              return bMillis.compareTo(aMillis);
+              final aLevel = a.data()['level'] ?? 0;
+              final bLevel = b.data()['level'] ?? 0;
+              return aLevel.compareTo(bLevel);
             });
           if (docs.isEmpty) {
             return const Center(
@@ -112,31 +151,48 @@ class QuizzesListScreen extends StatelessWidget {
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: sortedDocs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final data = sortedDocs[index].data();
-              final quizId = sortedDocs[index].id;
-              final title = (data['title'] ?? '') as String;
-              final description = (data['description'] ?? '') as String;
-              final createdBy = (data['createdBy'] ?? '') as String;
-
-              return Card(
-                child: ListTile(
-                  title: Text(title),
-                  subtitle: Text(description.isEmpty
-                      ? 'by ${createdBy.isEmpty ? 'Unknown' : createdBy}'
-                      : description),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.of(context).pushNamed(
-                      '/quiz_play',
-                      arguments: {'quizId': quizId},
-                    );
-                  },
-                ),
+          return FutureBuilder<Set<String>>(
+            future: _getCompletedQuizIds(),
+            builder: (context, completedSnapshot) {
+              final completedIds = completedSnapshot.data ?? {};
+              return ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: sortedDocs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final data = sortedDocs[index].data();
+                  final quizId = sortedDocs[index].id;
+                  final title = (data['title'] ?? '') as String;
+                  final description = (data['description'] ?? '') as String;
+                  final createdBy = (data['createdBy'] ?? '') as String;
+            
+                  // Lock logic: Only first quiz unlocked, next unlocked if previous completed
+                  bool isCompleted = completedIds.contains(quizId);
+                  bool isUnlocked = index == 0 || completedIds.contains(sortedDocs[index - 1].id);
+            
+                  return Card(
+                    child: ListTile(
+                      title: Text(title),
+                      subtitle: Text(description.isEmpty
+                          ? 'by ${createdBy.isEmpty ? 'Unknown' : createdBy}'
+                          : description),
+                      trailing: isCompleted
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : isUnlocked
+                              ? const Icon(Icons.lock_open, color: Colors.blue)
+                              : const Icon(Icons.lock, color: Colors.grey),
+                      enabled: isUnlocked,
+                      onTap: isUnlocked
+                          ? () {
+                              Navigator.of(context).pushNamed(
+                                '/quiz_play',
+                                arguments: {'quizId': quizId},
+                              );
+                            }
+                          : null,
+                    ),
+                  );
+                },
               );
             },
           );
@@ -149,4 +205,60 @@ class QuizzesListScreen extends StatelessWidget {
     if (s.isEmpty) return s;
     return s[0].toUpperCase() + s.substring(1);
   }
+
+  void _saveQuizOffline(Map<String, dynamic> quizData, String quizId) async {
+    var box = await Hive.openBox('quick10_questions');
+    final questions =
+        (quizData['questions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    await box.put(quizId, questions);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadOfflineQuiz(String quizId) async {
+    var box = await Hive.openBox('quick10_questions');
+    return box.get(quizId, defaultValue: [])?.cast<Map<String, dynamic>>() ??
+        [];
+  }
+
+  Future<List<Map<String, dynamic>>> _loadOfflineQuizList() async {
+    var box = await Hive.openBox('quick10_questions');
+    // Each value in the box is a list of questions, but we want quiz metadata
+    List<Map<String, dynamic>> quizzes = [];
+    for (var key in box.keys) {
+      // You may want to store quiz metadata separately for offline use
+      // For now, just use the key as quizId and get the first question's metadata if available
+      final questions =
+          box.get(key, defaultValue: [])?.cast<Map<String, dynamic>>() ?? [];
+      if (questions.isNotEmpty) {
+        quizzes.add({
+          'id': key,
+          'title': questions.first['quizTitle'] ?? 'Offline Quiz',
+          'description': questions.first['quizDescription'] ?? '',
+          'createdBy': questions.first['createdBy'] ?? '',
+        });
+      }
+    }
+    return quizzes;
+  }
+
+  // Example usage after fetching from Firestore:
+  // _saveQuizOffline(data, quizId);
+
+  // Example usage for offline:
+  // final questions = await _loadOfflineQuiz(quizId);
+  // Remove these lines:
+  // final box = await Hive.openBox<Quiz>('quizzes');
+  // final quizzes = box.values.toList();
+  // Use quizzes in your UI
+}
+
+Future<Set<String>> _getCompletedQuizIds() async {
+  var box = await Hive.openBox('completed_quizzes');
+  return Set<String>.from(box.get('ids', defaultValue: <String>[]));
+}
+
+Future<void> _markQuizCompleted(String quizId) async {
+  var box = await Hive.openBox('completed_quizzes');
+  final ids = Set<String>.from(box.get('ids', defaultValue: <String>[]));
+  ids.add(quizId);
+  await box.put('ids', ids.toList());
 }

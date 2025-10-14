@@ -5,21 +5,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 class QuizCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final String? category; // optional category key
+  final String? category;
   final VoidCallback? onStart;
-  const QuizCard(
-      {super.key,
-      required this.title,
-      required this.subtitle,
-      this.category,
-      this.onStart});
+  final bool isUnlocked;
+  final bool isCompleted;
+  final IconData icon; // <-- Add this
+
+  const QuizCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.category,
+    this.onStart,
+    required this.isUnlocked,
+    required this.isCompleted,
+    required this.icon, // <-- Add this
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
       child: InkWell(
-        onTap: onStart,
+        onTap: isUnlocked ? onStart : null,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -37,14 +45,14 @@ class QuizCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.quiz, color: Color(0xFF00C2FF)),
+                  Icon(icon, color: const Color(0xFF00C2FF)), // <-- Use passed icon
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Colors.white,
-                            fontSize: 18, // Reduced font size
+                            fontSize: 18,
                           ),
                     ),
                   ),
@@ -55,19 +63,23 @@ class QuizCard extends StatelessWidget {
                 subtitle,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.white70,
-                      fontSize: 14, // Reduced subtitle font size
+                      fontSize: 14,
                     ),
               ),
-              const SizedBox(height: 12), // Add spacing before button
+              const SizedBox(height: 12),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end, // Align to right
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   FilledButton.icon(
-                    onPressed: onStart,
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('Start'),
+                    onPressed: isUnlocked ? onStart : null,
+                    icon: isCompleted
+                        ? const Icon(Icons.check, size: 18)
+                        : const Icon(Icons.play_arrow, size: 18),
+                    label: Text(isCompleted ? 'Completed' : 'Start'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF00C2FF),
+                      backgroundColor: isUnlocked
+                          ? const Color(0xFF00C2FF)
+                          : Colors.grey,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,

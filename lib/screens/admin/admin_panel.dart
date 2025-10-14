@@ -69,33 +69,22 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     try {
+      final categoryName = _selectedCategory.name;
+      final difficultyName = _selectedDifficulty.name;
+      final nextLevel = await _getNextLevel(categoryName, difficultyName);
+
       final quizDoc = <String, dynamic>{
+        'title': _titleController.text,
+        'description': _descriptionController.text,
+        'category': categoryName,
+        'difficulty': difficultyName,
+        'level': nextLevel,
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': context.read<AuthState>().userName ?? 'Unknown',
-        'createdByEmail': context.read<AuthState>().userEmail ?? '',
-        'quizType': _selectedQuizType.name,
+        'questions': _questions.map((q) => q.toMap()).toList(),
       };
 
-      // Conditionally add fields based on quiz type
-      if (_selectedQuizType == QuizType.category) {
-        quizDoc['title'] = _titleController.text.trim();
-        quizDoc['description'] = _descriptionController.text.trim();
-        quizDoc['category'] = _selectedCategory.name;
-        quizDoc['difficulty'] = _selectedDifficulty.name;
-      } else if (_selectedQuizType == QuizType.timed) {
-        quizDoc['title'] = _titleController.text.trim();
-        quizDoc['description'] = _descriptionController.text.trim();
-      }
-      // For Quick 10, no title, description, category, or difficulty is needed.
-
-      final questions = _questions
-          .where((q) => q.isValid())
-          .map((q) => q.toMap())
-          .toList(growable: false);
-
-      final docRef = await FirebaseFirestore.instance
-          .collection('quizzes')
-          .add({...quizDoc, 'questions': questions});
+      final docRef = await FirebaseFirestore.instance.collection('quizzes').add(quizDoc);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -507,4 +496,29 @@ class _UserStat {
   final String displayName;
   final int quizzesPlayedCount;
   _UserStat({required this.displayName, required this.quizzesPlayedCount});
+}
+
+Future<int> _getNextLevel(String category, String difficulty) async {
+  final querySnapshot = await FirebaseFirestore.instance
+      .collection('quizzes')
+      .where('category', isEqualTo: category)
+      .where('difficulty', isEqualTo: difficulty)
+      .get();
+
+  int maxLevel = 0;
+  for (var doc in querySnapshot.docs) {
+    final levelRaw = doc.data()['level'];
+    int level;
+    if (levelRaw is int) {
+      level = levelRaw;
+    } else if (levelRaw is double) {
+      level = levelRaw.toInt();
+    } else if (levelRaw is String) {
+      level = int.tryParse(levelRaw) ?? 0;
+    } else {
+      level = 0;
+    }
+    if (level > maxLevel) maxLevel = level;
+  }
+  return maxLevel + 1;
 }

@@ -20,6 +20,9 @@ class ExplorePage extends StatelessWidget {
           title: 'General',
           subtitle: 'All-around knowledge',
           category: QuizCategory.general.name,
+          icon: Icons.public, // <-- Add this
+          isUnlocked: true,
+          isCompleted: false,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.general);
             _showDifficultySheetAndNavigate(context);
@@ -27,8 +30,11 @@ class ExplorePage extends StatelessWidget {
         ),
         QuizCard(
           title: 'Science',
-          subtitle: 'Physics Biology & Chemistry', // Shortened subtitle
+          subtitle: 'Physics Biology & Chemistry',
           category: QuizCategory.science.name,
+          icon: Icons.science, // <-- Add this
+          isUnlocked: true,
+          isCompleted: false,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.science);
             _showDifficultySheetAndNavigate(context);
@@ -36,8 +42,11 @@ class ExplorePage extends StatelessWidget {
         ),
         QuizCard(
           title: 'Technology',
-          subtitle: 'Tech & Gadgets', // Shortened subtitle
+          subtitle: 'Tech & Gadgets',
           category: QuizCategory.technology.name,
+          icon: Icons.memory, // <-- Add this
+          isUnlocked: true,
+          isCompleted: false,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.technology);
             _showDifficultySheetAndNavigate(context);
@@ -47,6 +56,9 @@ class ExplorePage extends StatelessWidget {
           title: 'History',
           subtitle: 'Past events',
           category: QuizCategory.history.name,
+          icon: Icons.history_edu, // <-- Add this
+          isUnlocked: true,
+          isCompleted: false,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.history);
             _showDifficultySheetAndNavigate(context);
@@ -56,6 +68,9 @@ class ExplorePage extends StatelessWidget {
           title: 'Sports',
           subtitle: 'Games & records',
           category: QuizCategory.sports.name,
+          icon: Icons.sports_soccer, // <-- Add this
+          isUnlocked: true,
+          isCompleted: false,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.sports);
             _showDifficultySheetAndNavigate(context);
@@ -65,6 +80,9 @@ class ExplorePage extends StatelessWidget {
           title: 'Movies',
           subtitle: 'Cinema trivia',
           category: QuizCategory.movies.name,
+          icon: Icons.movie, // <-- Add this
+          isUnlocked: true,
+          isCompleted: false,
           onStart: () {
             context.read<QuizState>().setCategory(QuizCategory.movies);
             _showDifficultySheetAndNavigate(context);
