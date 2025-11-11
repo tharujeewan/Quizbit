@@ -9,6 +9,7 @@ class AuthState extends ChangeNotifier {
 
   String? _userName;
   String? _lastErrorMessage;
+
   // Whitelist of admin emails. Replace with your admin emails.
   static const Set<String> _adminEmails = {
     'admin@example.com',
@@ -47,11 +48,9 @@ class AuthState extends ChangeNotifier {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
       _userName = _deriveUserName(_auth.currentUser);
 
-      // Try to update Firestore document, but don't fail login if it fails
       try {
         await _ensureFirestoreUserDoc();
       } catch (firestoreError) {
-        // Log the error but don't fail the login
         print('Firestore update failed during login: $firestoreError');
       }
 
@@ -86,11 +85,9 @@ class AuthState extends ChangeNotifier {
       }
       _userName = _deriveUserName(_auth.currentUser);
 
-      // Try to create Firestore document, but don't fail signup if it fails
       try {
         await _ensureFirestoreUserDoc(displayNameOverride: name.trim());
       } catch (firestoreError) {
-        // Log the error but don't fail the signup
         print(
             'Firestore document creation failed during signup: $firestoreError');
       }
@@ -115,7 +112,6 @@ class AuthState extends ChangeNotifier {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        // The user canceled the sign-in
         _lastErrorMessage = 'Google Sign-In was cancelled.';
         notifyListeners();
         return false;
@@ -138,10 +134,13 @@ class AuthState extends ChangeNotifier {
       return true;
     } on FirebaseAuthException catch (e) {
       _lastErrorMessage = _mapAuthErrorToMessage(e);
+      print('Google Sign-In FirebaseAuthException: ${e.code} - ${e.message}');
       notifyListeners();
       return false;
     } catch (e) {
-      _lastErrorMessage = 'An error occurred with Google Sign-In.';
+      print('Google Sign-In error: $e'); // <-- This prints the real error
+      _lastErrorMessage =
+          'An error occurred with Google Sign-In. hahahahsahhsah';
       notifyListeners();
       return false;
     }
@@ -154,14 +153,11 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Method to check if Firebase is properly connected
   Future<bool> checkFirebaseConnection() async {
     try {
-      // Try to access a collection that should exist (users collection)
       await FirebaseFirestore.instance.collection('users').limit(1).get();
       return true;
     } catch (e) {
-      // If users collection doesn't exist, try a simple ping
       try {
         await FirebaseFirestore.instance.runTransaction((transaction) async {
           return true;
@@ -231,7 +227,6 @@ class AuthState extends ChangeNotifier {
         'quizzesPlayedCount': FieldValue.increment(0),
       }, SetOptions(merge: true));
     } catch (e) {
-      // Re-throw the error with more context
       throw Exception('Failed to update user document in Firestore: $e');
     }
   }

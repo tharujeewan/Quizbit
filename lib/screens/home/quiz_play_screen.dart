@@ -15,7 +15,6 @@ class QuizPlayScreen extends StatefulWidget {
 
 class _QuizPlayScreenState extends State<QuizPlayScreen> {
   int _currentIndex = 0;
-  int _score = 0;
   int? _selectedOptionIndex;
   late Future<_QuizData> _quizFuture;
   Timer? _timer;
@@ -107,7 +106,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
         setState(() => _timeLeft--);
       } else {
         // Time's up - move to next question
-        _questionsAttempted++;
+        // Only increment attempted if this question hasn't been answered before
+        if (_selectedAnswers[_currentIndex] == null) {
+          _questionsAttempted++;
+        }
         if (_selectedOptionIndex != null) {
           _submitAnswer(quiz);
         } else {
@@ -115,7 +117,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
           if (_currentIndex < quiz.questions.length - 1) {
             setState(() {
               _currentIndex++;
-              _selectedOptionIndex = null;
+              _selectedOptionIndex = _selectedAnswers[_currentIndex];
               _timeLeft = 10;
             });
           } else {
@@ -129,21 +131,18 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
 
   void _submitAnswer(_QuizData quiz) {
     final question = quiz.questions[_currentIndex];
-    if (_selectedOptionIndex != null &&
-        _selectedOptionIndex == question.correctIndex) {
-      _score += 1;
-    }
-    _questionsAttempted++;
 
-    // Store the selected answer for this question
+    if (_selectedAnswers[_currentIndex] == null) {
+      _questionsAttempted++;
+    }
+
     _selectedAnswers[_currentIndex] = _selectedOptionIndex;
 
     if (_currentIndex < quiz.questions.length - 1) {
       setState(() {
         _currentIndex += 1;
-        // Restore selected answer for next question if exists
         _selectedOptionIndex = _selectedAnswers[_currentIndex];
-        _timeLeft = 10; // Reset timer for next question
+        _timeLeft = 10;
       });
     } else {
       _timer?.cancel();
@@ -151,23 +150,25 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
     }
   }
 
-  Future<void> _markQuizCompleted(String quizId) async {
-    var box = await Hive.openBox('completed_quizzes');
-    final ids = Set<String>.from(box.get('ids', defaultValue: <String>[]));
-    ids.add(quizId);
-    await box.put('ids', ids.toList());
-  }
-
   void _showResult(_QuizData quiz) async {
     final total = quiz.questions.length;
     final notAttempted = total - _questionsAttempted;
+
+    // Calculate score based on selected answers
+    int finalScore = 0;
+    for (int i = 0; i < quiz.questions.length; i++) {
+      final selected = _selectedAnswers[i];
+      if (selected != null && selected == quiz.questions[i].correctIndex) {
+        finalScore++;
+      }
+    }
+
     final args = ModalRoute.of(context)?.settings.arguments;
     final quizId = (args is Map && args['quizId'] is String)
         ? args['quizId'] as String
         : null;
 
-    // Only mark as completed if user passes (>= 6 correct answers)
-    if (quizId != null && _score >= 6) {
+    if (quizId != null && finalScore >= 6) {
       await _markQuizCompleted(quizId);
     }
 
@@ -181,11 +182,11 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Final Score: $_score / $total'),
+              Text('Final Score: $finalScore / $total'),
               const SizedBox(height: 8),
               Text('Questions Attempted: $_questionsAttempted'),
               Text('Questions Not Attempted: $notAttempted'),
-              if (_score >= 6)
+              if (finalScore >= 6)
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
@@ -217,6 +218,13 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
         );
       },
     );
+  }
+
+  Future<void> _markQuizCompleted(String quizId) async {
+    var box = await Hive.openBox('completed_quizzes');
+    final ids = Set<String>.from(box.get('ids', defaultValue: <String>[]));
+    ids.add(quizId);
+    await box.put('ids', ids.toList());
   }
 
   @override
