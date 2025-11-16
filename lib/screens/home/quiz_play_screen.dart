@@ -43,29 +43,63 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
 
   Future<_QuizData> _loadQuiz(String quizId) async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('quizzes')
-          .doc(quizId)
-          .get();
-      if (!snap.exists) {
-        throw Exception('Quiz not found');
-      }
-      final data = snap.data() as Map<String, dynamic>;
-      final title = (data['title'] ?? '') as String;
-      final rawQuestions = (data['questions'] ?? []) as List<dynamic>;
-      final questions = <_Question>[];
-      for (final q in rawQuestions) {
-        if (q is Map<String, dynamic>) {
-          final prompt = (q['prompt'] ?? '') as String;
-          final correct = (q['correct'] ?? '') as String;
-          final incorrect = (q['incorrect'] ?? []) as List<dynamic>;
-          final allOptions = <String>[correct, ...incorrect.cast<String>()];
-          allOptions.shuffle();
-          final correctIndex = allOptions.indexOf(correct);
-          questions.add(_Question(
-              prompt: prompt, options: allOptions, correctIndex: correctIndex));
+      final quizState = Provider.of<QuizState>(context, listen: false);
+      final isQuick10 = quizState.selectedQuizType == 'quick10';
+
+      List<Map<String, dynamic>> allQuestions = [];
+      String title = 'Quick 10';
+
+      if (isQuick10) {
+        // For Quick 10, get all Quick 10 quizzes and merge their question pools
+        final quick10Snaps = await FirebaseFirestore.instance
+            .collection('quizzes')
+            .where('quizType', isEqualTo: 'quick10')
+            .get();
+
+        for (var doc in quick10Snaps.docs) {
+          final data = doc.data();
+          final rawQuestions = (data['questions'] ?? []) as List<dynamic>;
+          for (var q in rawQuestions) {
+            if (q is Map<String, dynamic>) {
+              allQuestions.add(q);
+            }
+          }
         }
+
+        if (allQuestions.isEmpty) {
+          throw Exception('No Quick 10 questions available');
+        }
+
+        // Randomly select 10 questions from the pool
+        allQuestions.shuffle();
+        allQuestions = allQuestions.take(10).toList();
+      } else {
+        // For other quiz types, load normally
+        final snap = await FirebaseFirestore.instance
+            .collection('quizzes')
+            .doc(quizId)
+            .get();
+        if (!snap.exists) {
+          throw Exception('Quiz not found');
+        }
+        final data = snap.data() as Map<String, dynamic>;
+        title = (data['title'] ?? '') as String;
+        final rawQuestions = (data['questions'] ?? []) as List<dynamic>;
+        allQuestions = rawQuestions.cast<Map<String, dynamic>>();
       }
+
+      final questions = <_Question>[];
+      for (final q in allQuestions) {
+        final prompt = (q['prompt'] ?? '') as String;
+        final correct = (q['correct'] ?? '') as String;
+        final incorrect = (q['incorrect'] ?? []) as List<dynamic>;
+        final allOptions = <String>[correct, ...incorrect.cast<String>()];
+        allOptions.shuffle();
+        final correctIndex = allOptions.indexOf(correct);
+        questions.add(_Question(
+            prompt: prompt, options: allOptions, correctIndex: correctIndex));
+      }
+
       if (questions.isEmpty) {
         throw Exception('This quiz has no questions yet');
       }
@@ -73,8 +107,14 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
     } catch (e) {
       // If offline or error, try to load from local storage
       var box = await Hive.openBox('quick10_questions');
+      if (!box.containsKey(quizId)) {
+        throw Exception('Quiz not available offline for id: $quizId');
+      }
       final rawQuestions =
           box.get(quizId, defaultValue: [])?.cast<Map<String, dynamic>>() ?? [];
+      if (rawQuestions.isEmpty) {
+        throw Exception('Offline quiz data is empty for id: $quizId');
+      }
       final questions = <_Question>[];
       for (final q in rawQuestions) {
         final prompt = (q['prompt'] ?? '') as String;
@@ -130,8 +170,6 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
   }
 
   void _submitAnswer(_QuizData quiz) {
-    final question = quiz.questions[_currentIndex];
-
     if (_selectedAnswers[_currentIndex] == null) {
       _questionsAttempted++;
     }

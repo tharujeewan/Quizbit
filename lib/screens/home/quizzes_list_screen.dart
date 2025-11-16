@@ -23,7 +23,7 @@ class QuizzesListScreen extends StatelessWidget {
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('quizzes')
-              .where('quizType', isEqualTo: 'quick10')
+              .where('type', isEqualTo: 'quick10')
               .limit(1) // Get one random quiz
               .snapshots(),
           builder: (context, snapshot) {
@@ -60,7 +60,7 @@ class QuizzesListScreen extends StatelessWidget {
     String titleText;
 
     if (selectedQuizType != null) {
-      query = query.where('quizType', isEqualTo: selectedQuizType);
+      query = query.where('type', isEqualTo: selectedQuizType);
       titleText = selectedQuizType == 'quick10'
           ? 'Quick 10'
           : selectedQuizType == 'timed'
@@ -165,11 +165,12 @@ class QuizzesListScreen extends StatelessWidget {
                   final title = (data['title'] ?? '') as String;
                   final description = (data['description'] ?? '') as String;
                   final createdBy = (data['createdBy'] ?? '') as String;
-            
+
                   // Lock logic: Only first quiz unlocked, next unlocked if previous completed
                   bool isCompleted = completedIds.contains(quizId);
-                  bool isUnlocked = index == 0 || completedIds.contains(sortedDocs[index - 1].id);
-            
+                  bool isUnlocked = index == 0 ||
+                      completedIds.contains(sortedDocs[index - 1].id);
+
                   return Card(
                     child: ListTile(
                       title: Text(title),

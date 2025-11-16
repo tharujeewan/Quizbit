@@ -69,22 +69,29 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     try {
-      final categoryName = _selectedCategory.name;
-      final difficultyName = _selectedDifficulty.name;
-      final nextLevel = await _getNextLevel(categoryName, difficultyName);
+      String quizTypeString = _selectedQuizType.name; // Add this
 
       final quizDoc = <String, dynamic>{
         'title': _titleController.text,
         'description': _descriptionController.text,
-        'category': categoryName,
-        'difficulty': difficultyName,
-        'level': nextLevel,
+        'type': quizTypeString, // Save the type
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': context.read<AuthState>().userName ?? 'Unknown',
         'questions': _questions.map((q) => q.toMap()).toList(),
       };
 
-      final docRef = await FirebaseFirestore.instance.collection('quizzes').add(quizDoc);
+      // Only add category/difficulty/level for category type
+      if (_selectedQuizType == QuizType.category) {
+        final categoryName = _selectedCategory.name;
+        final difficultyName = _selectedDifficulty.name;
+        final nextLevel = await _getNextLevel(categoryName, difficultyName);
+        quizDoc['category'] = categoryName;
+        quizDoc['difficulty'] = difficultyName;
+        quizDoc['level'] = nextLevel;
+      }
+
+      final docRef =
+          await FirebaseFirestore.instance.collection('quizzes').add(quizDoc);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
